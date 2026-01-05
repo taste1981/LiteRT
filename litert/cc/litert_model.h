@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/log/absl_log.h"  // from @com_google_absl
 #include "absl/strings/string_view.h"  // from @com_google_absl
 #include "absl/types/span.h"  // from @com_google_absl
 #include "litert/c/litert_common.h"
@@ -328,6 +329,7 @@ class Model : public internal::Handle<LiteRtModel, LiteRtDestroyModel> {
   /// Returns 0 if the signature key is empty.
   Expected<size_t> GetSignatureIndex(absl::string_view signature_key) const {
     if (signature_key.empty()) {
+      ABSL_LOG(INFO) << "Returning default signature index 0.";
       return 0;
     }
     LiteRtParamIndex num_signatures;
@@ -341,6 +343,7 @@ class Model : public internal::Handle<LiteRtModel, LiteRtDestroyModel> {
         return i;
       }
     }
+    ABSL_LOG(INFO) << "Signature not found.";
     return Unexpected(kLiteRtStatusErrorNotFound, "Signature not found");
   }
 

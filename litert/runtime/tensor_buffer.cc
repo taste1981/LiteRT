@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "xnnpack.h"  // from @XNNPACK
+#include "absl/log/absl_log.h"  // from @com_google_absl
 #include "absl/strings/str_format.h"  // from @com_google_absl
 #include "absl/types/span.h"  // from @com_google_absl
 #include "litert/c/internal/litert_logging.h"
@@ -986,6 +987,20 @@ Expected<litert::internal::CustomBuffer*>
 LiteRtTensorBufferT::GetCustomBuffer() {
   if (IsWebGpuMemory(buffer_type_) || IsVulkanMemory(buffer_type_) ||
       IsMetalMemory(buffer_type_) || IsOpenVINOTensorBuffer(buffer_type_)) {
+    ABSL_LOG(INFO)
+        << "Getting custom buffer for buffer type: "
+        << BufferTypeToString(buffer_type_);
+    
+    // Check if variant actually holds CustomBuffer
+    if (!std::holds_alternative<litert::internal::CustomBuffer>(buffer_)) {
+      std::string error_msg = absl::StrFormat(
+          "Variant access failure: Expected CustomBuffer for buffer_type=%s, "
+          "but variant holds index %d",
+          BufferTypeToString(buffer_type_), buffer_.index());
+      ABSL_LOG(ERROR) << error_msg;
+      return Unexpected(kLiteRtStatusErrorRuntimeFailure, error_msg);
+    }
+    
     return &std::get<litert::internal::CustomBuffer>(buffer_);
   }
   return Unexpected(kLiteRtStatusErrorRuntimeFailure,

@@ -141,10 +141,16 @@ LiteRtDispatchDeviceContextT::RegisterTensorBuffer(
       litert::Unexpected(kLiteRtStatusErrorRuntimeFailure,
                          "Tensor strides are not supported"));
 
+  ABSL_LOG(INFO) << "Registering tensor buffer of type "
+                                    << static_cast<int>(tensor_buffer_type)
+                                    << " with size " << tensor_buffer_size
+                                    << " and offset " << tensor_buffer_offset;
+
   switch (tensor_buffer_type) {
     case kLiteRtTensorBufferTypeOpenVINOTensorBuffer: {
 #if defined(LITERT_WINDOWS_OS)
       HwMemoryHandle hw_memory_handle;
+      ABSL_LOG(INFO) << "Getting OpenVINO remote tensor buffer handle.";
       LITERT_RETURN_IF_ERROR(
           LiteRtGetTensorBufferCustomTensorBufferHandle(tensor_buffer,
                                                         &hw_memory_handle),
@@ -153,8 +159,10 @@ LiteRtDispatchDeviceContextT::RegisterTensorBuffer(
       RemoteTensorBuffer* custom_tensor_buffer =
           reinterpret_cast<RemoteTensorBuffer*>(hw_memory_handle);
 
+      ABSL_LOG(INFO) << "Registering OpenVINO remote tensor buffer.";
       LITERT_ASSIGN_OR_RETURN(auto remote_tensor,
                               custom_tensor_buffer->GetZeroBufferTensor());
+      ABSL_LOG(INFO) << "Successfully got ZeroBufferTensor.";
       tensor_handle_map_.emplace((LiteRtTensorBufferHandle)next_handle_,
                                  remote_tensor);
 

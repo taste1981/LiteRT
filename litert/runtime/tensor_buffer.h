@@ -229,14 +229,12 @@ class LiteRtTensorBufferT {
 
   using BufferVariant =
       std::variant<HostBuffer, AhwbBuffer, IonBuffer, DmaBufBuffer,
-                   FastRpcBuffer,
+                   FastRpcBuffer, litert::internal::CustomBuffer
 #if LITERT_HAS_OPENCL_SUPPORT
-                   litert::internal::OpenClMemory,
+                   ,litert::internal::OpenClMemory
 #endif  // LITERT_HAS_OPENCL_SUPPORT
-                   litert::internal::CustomBuffer
 #if LITERT_HAS_OPENGL_SUPPORT
-                   ,
-                   litert::internal::GlBuffer, litert::internal::GlTexture
+                   ,litert::internal::GlBuffer, litert::internal::GlTexture
 #endif  // LITERT_HAS_OPENGL_SUPPORT
                    >;
 

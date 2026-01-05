@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/log/absl_log.h"  // from @com_google_absl
 #include "absl/types/span.h"  // from @com_google_absl
 #include "litert/c/litert_common.h"
 #include "litert/c/litert_custom_tensor_buffer.h"
@@ -180,11 +181,15 @@ LiteRtStatus LiteRtGetTensorBufferOpenClMemory(LiteRtTensorBuffer tensor_buffer,
 LiteRtStatus LiteRtGetTensorBufferCustomTensorBufferHandle(
     LiteRtTensorBuffer tensor_buffer, HwMemoryHandle* hw_memory_handle) {
   if (!tensor_buffer || !hw_memory_handle) {
+    ABSL_LOG(INFO) << "Invalid argument.";
     return kLiteRtStatusErrorInvalidArgument;
   }
 
+  ABSL_LOG(INFO) << "Getting custom tensor buffer handle.";
   LITERT_ASSIGN_OR_RETURN(auto remote_tensor_buffer,
                           tensor_buffer->GetCustomBuffer());
+
+  ABSL_LOG(INFO) << "Successfully got custom tensor buffer handle.";
   *hw_memory_handle = remote_tensor_buffer->hw_buffer_handle();
   return kLiteRtStatusOk;
 }
