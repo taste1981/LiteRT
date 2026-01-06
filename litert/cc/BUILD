@@ -814,6 +814,7 @@ cc_library(
         "//litert/c:litert_model_types",
         "//litert/cc/internal:litert_detail",
         "//litert/cc/internal:litert_handle",
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
     ],

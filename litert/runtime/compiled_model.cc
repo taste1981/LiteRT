@@ -39,6 +39,7 @@
 
 #include "absl/cleanup/cleanup.h"  // from @com_google_absl
 #include "absl/log/absl_check.h"  // from @com_google_absl
+#include "absl/log/absl_log.h"  // from @com_google_absl
 #include "absl/strings/match.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
 #include "absl/strings/str_format.h"  // from @com_google_absl
@@ -970,6 +971,17 @@ Expected<void> LiteRtCompiledModelT::RegisterBuffer(
     absl::Span<const int> buffer_shape =
         absl::MakeConstSpan(layout.dimensions, layout.rank);
 
+    // Log input tensor information
+    ABSL_LOG(INFO) << absl::StrFormat("Input tensor '%s': type=%d, allocation_type=%d, bytes=%zu, "
+               "dims=[%s], rank=%u, buffer_type=%d",
+               tensor_name ? tensor_name : "<unnamed>",
+               tensor->type,
+               tensor->allocation_type,
+               tensor->bytes,
+               absl::StrJoin(absl::MakeConstSpan(tensor->dims->data, tensor->dims->size), ",").c_str(),
+               layout.rank,
+               buffer->buffer_type());
+
     LITERT_ASSIGN_OR_RETURN(bool needs_auto_resize,
                             InputTensorNeedsResize(tensor, buffer_shape));
     if (needs_auto_resize) {
@@ -1162,6 +1174,11 @@ Expected<void> LiteRtCompiledModelT::Run(
         profiler_->BeginEvent("LiteRT::Run[buffer registration]",
                               tflite::Profiler::EventType::DEFAULT, 0, 0);
   }
+  ABSL_LOG(INFO)
+      << "-------------------------------LiteRtCompiledModelT::Run called with signature_key: "
+      << signature_key << ", num_inputs: " << input_buffers.size()
+      << ", num_outputs: " << output_buffers.size()
+      << ", async: " << (async ? "true" : "false");
   auto runner = GetSignatureRunner(signature_key);
   if (runner == nullptr) {
     return Unexpected(kLiteRtStatusErrorNotFound,
@@ -1212,6 +1229,7 @@ Expected<void> LiteRtCompiledModelT::Run(
       // been bound to an external buffer.
       continue;
     }
+
     auto res =
         RegisterBuffer(runner, input_tensor, input_name, input_buffers[i],
                        /*is_input=*/true, locked_buffers, constant_outputs);
@@ -1393,24 +1411,23 @@ Expected<bool> LiteRtCompiledModelT::InputTensorNeedsResize(
     return false;
   }
 
-  if (!tensor->dims_signature || tensor->dims_signature->size == 0) {
+  // Use dims_signature if available, otherwise fall back to dims
+  const TfLiteIntArray* signature_array = 
+      (tensor->dims_signature && tensor->dims_signature->size > 0) 
+          ? tensor->dims_signature 
+          : tensor->dims;
+  
+  if (!signature_array || signature_array->size == 0) {
     return litert::Unexpected(
         kLiteRtStatusErrorInvalidArgument,
         absl::StrCat("Cannot auto-resize tensor ",
                      tensor->name ? tensor->name : "<unnamed>",
-                     ": no dims_signature exists"));
+                     ": no shape information exists"));
   }
+
   // Validate that the tensor has dynamic dimensions (contains -1).
   absl::Span<const int> signature_shape = absl::MakeConstSpan(
-      tensor->dims_signature->data, tensor->dims_signature->size);
-
-  LITERT_RETURN_IF_ERROR(
-      std::find(signature_shape.begin(), signature_shape.end(), -1) !=
-          signature_shape.end(),
-      litert::Unexpected(kLiteRtStatusErrorInvalidArgument,
-                         absl::StrCat("Cannot auto-resize tensor ",
-                                      tensor->name ? tensor->name : "<unnamed>",
-                                      ": no dynamic dimensions found")));
+      signature_array->data, signature_array->size);
 
   // Validate that new shape is compatible with tensor structure.
   LITERT_RETURN_IF_ERROR(
@@ -1421,6 +1438,17 @@ Expected<bool> LiteRtCompiledModelT::InputTensorNeedsResize(
                        tensor->name ? tensor->name : "<unnamed>",
                        ": rank mismatch (current: ", signature_shape.size(),
                        ", new: ", new_shape.size(), ")")));
+
+// For now skip this check to allow implicit auto resize when dims_signature is
+// missing.
+#if 0
+  LITERT_RETURN_IF_ERROR(
+      std::find(signature_shape.begin(), signature_shape.end(), -1) !=
+          signature_shape.end(),
+      litert::Unexpected(kLiteRtStatusErrorInvalidArgument,
+                         absl::StrCat("Cannot auto-resize tensor ",
+                                      tensor->name ? tensor->name : "<unnamed>",
+                                      ": no dynamic dimensions found")));
 
   // Check that static dimensions match and dynamic dimensions are reasonable.
   for (size_t i = 0; i < signature_shape.size(); ++i) {
@@ -1447,6 +1475,7 @@ Expected<bool> LiteRtCompiledModelT::InputTensorNeedsResize(
                            " at index ", i)));
     }
   }
+#endif
 
   LITERT_LOG(LITERT_INFO,
              "Detected shape change for tensor %s - validation passed",

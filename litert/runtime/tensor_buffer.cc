@@ -163,6 +163,9 @@ LiteRtTensorBufferT::LiteRtTensorBufferT(
   }
 // Our Emscripten builds process this as an error rather than a debug log, so
 // disabling for web platform temporarily to avoid breakages.
+  ABSL_LOG(INFO) << absl::StrFormat(
+      "Creating tensor buffer %p of type %s, size %zu", this,
+      BufferTypeToString(buffer_type).data(), buffer_size);
 #ifndef __EMSCRIPTEN__
   LITERT_LOG(LITERT_DEBUG, "Created tensor buffer %p of type %s", this,
              BufferTypeToString(buffer_type_).data());
@@ -270,6 +273,10 @@ Expected<LiteRtTensorBufferT::Ptr> LiteRtTensorBufferT::CreateFromHostMemory(
     return Unexpected(status.Error());
   }
 
+  ABSL_LOG(INFO) << absl::StrFormat(
+      "Created Host Memory tensor buffer %p of size %zu", tensor_buffer.get(),
+      host_memory.size());
+
   return tensor_buffer;
 }
 
@@ -284,6 +291,10 @@ Expected<LiteRtTensorBufferT::Ptr>
 LiteRtTensorBufferT::CreateManagedOnHostMemory(
     const LiteRtRankedTensorType& tensor_type, size_t buffer_size,
     size_t alignment) {
+  ABSL_LOG(INFO) << absl::StrFormat(
+      "Allocating managed Host Memory tensor buffer of size %zu with "
+      "alignment %zu",
+      buffer_size, alignment);
   void* host_memory_ptr;
   if (auto rc = posix_memalign(&host_memory_ptr, alignment,
                                buffer_size + XNN_EXTRA_BYTES);
@@ -513,6 +524,9 @@ LiteRtTensorBufferT::CreateManagedOpenVINOTensorBuffer(
       new LiteRtTensorBufferT(env, tensor_type, buffer_type, buffer_size));
   tensor_buffer->buffer_.emplace<litert::internal::CustomBuffer>(
       std::move(*buffer));
+  ABSL_LOG(INFO) << absl::StrFormat(
+      "Created OpenVINO tensor buffer %p of type %s, size %zu", tensor_buffer.get(),
+      BufferTypeToString(buffer_type).data(), buffer_size);
   return tensor_buffer;
 }
 
